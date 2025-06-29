@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import plotly as px
 
 # Set Streamlit page configuration
 st.set_page_config(layout="wide", page_title="WNBA Attendance Dashboard", page_icon="🏀")
