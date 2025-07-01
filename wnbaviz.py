@@ -178,8 +178,7 @@ if not df_attendance.empty:
     st.title("🏀 WNBA Game Attendance & Media Dashboard")
 
     st.markdown("""
-        Welcome to the interactive WNBA Attendance and Media Dashboard! Explore game attendance trends
-        and compare them with media coverage using the filters below and in the sidebar.
+        Explore game attendance trends and compare them with media coverage using the filters below and in the sidebar.
         """)
 
     st.markdown("---") # Visual separator
@@ -213,7 +212,7 @@ if not df_attendance.empty:
     # Game Type Selector
     all_game_types = df_attendance['Game Type'].unique().tolist()
     selected_game_types = st.sidebar.multiselect(
-        "Select Game Type(s)",
+        "Game Type",
         options=all_game_types,
         default=all_game_types,
         help="Filter by Regular Season, Playoffs, All-Star, etc."
@@ -222,7 +221,7 @@ if not df_attendance.empty:
     # Home Team Selector
     all_home_teams = sorted(df_attendance['Home Team'].unique().tolist())
     selected_home_teams = st.sidebar.multiselect(
-        "Select Home Team(s)",
+        "Home Team(s)",
         options=all_home_teams,
         default=all_home_teams,
         help="Include or exclude specific home teams."
@@ -231,7 +230,7 @@ if not df_attendance.empty:
     # Away Team Selector
     all_away_teams = sorted(df_attendance['Away Team'].unique().tolist())
     selected_away_teams = st.sidebar.multiselect(
-        "Select Away Team(s)",
+        "Away Team(s)",
         options=all_away_teams,
         default=all_away_teams,
         help="Include or exclude specific away teams."
@@ -240,25 +239,16 @@ if not df_attendance.empty:
     # City Selector
     all_cities = sorted(df_attendance['City'].unique().tolist())
     selected_cities = st.sidebar.multiselect(
-        "Select City(ies)",
+        "City",
         options=all_cities,
         default=all_cities,
         help="Filter games by the city they were played in."
-    )
-
-    # State Selector
-    all_states = sorted(df_attendance['State'].unique().tolist())
-    selected_states = st.sidebar.multiselect(
-        "Select State(s)",
-        options=all_states,
-        default=all_states,
-        help="Filter games by the state they were played in."
     )
     
     # Arena Selector
     all_arenas = sorted(df_attendance['Arena'].unique().tolist())
     selected_arenas = st.sidebar.multiselect(
-        "Select Arena(s)",
+        "Arena",
         options=all_arenas,
         default=all_arenas,
         help="Filter games by specific arenas."
