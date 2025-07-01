@@ -210,6 +210,13 @@ if not df_attendance.empty:
     st.sidebar.header("Additional Filter Options")
     st.sidebar.markdown("Adjust these filters to refine the data displayed in the charts.")
 
+    # Offseason filter option
+    filter_offseason = st.sidebar.checkbox(
+        "Exclude Offseason (Nov-Apr)",
+        value=True,  # Default is ON
+        help="Check to filter out data from November through April (offseason months)."
+    )
+
     # Game Type Selector
     all_game_types = df_attendance['Game Type'].unique().tolist()
     selected_game_types = st.sidebar.multiselect(
@@ -286,8 +293,9 @@ if not df_attendance.empty:
         (~df_attendance['Away Team'].isin(teams_to_exclude))
     ]
 
-    # Filter out offseason months from attendance data
-    initial_filtered_df = initial_filtered_df[~initial_filtered_df['Date'].dt.month.isin(offseason_months)]
+    # Apply offseason filter if checkbox is checked
+    if filter_offseason:
+        initial_filtered_df = initial_filtered_df[~initial_filtered_df['Date'].dt.month.isin(offseason_months)]
     # --- End of Team and Offseason Exclusion Filter ---
 
     filtered_df_attendance = initial_filtered_df[
@@ -376,8 +384,9 @@ if not df_attendance.empty:
             # Ensure 'Date' column exists in df_media before filtering by year
             if 'Date' in df_media.columns:
                 filtered_df_media = df_media[df_media['Date'].dt.year.isin(selected_years_slider)]
-                # Filter out offseason months from media data
-                filtered_df_media = filtered_df_media[~filtered_df_media['Date'].dt.month.isin(offseason_months)]
+                # Apply offseason filter to media data if checkbox is checked
+                if filter_offseason:
+                    filtered_df_media = filtered_df_media[~filtered_df_media['Date'].dt.month.isin(offseason_months)]
             else:
                 filtered_df_media = pd.DataFrame() # No 'Date' column in media, so no media filter
 
