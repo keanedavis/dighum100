@@ -1,9 +1,11 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # Set Streamlit page configuration
-st.set_page_config(layout="wide", page_title="WNBA Attendance Dashboard", page_icon="🏀")
+st.set_page_config(layout="wide", page_title="WNBA Attendance & Media Dashboard", page_icon="🏀")
 
 # --- Define a custom color palette for teams (using Plotly's qualitative colors) ---
 # This ensures a variety of distinct colors for different teams
@@ -71,18 +73,113 @@ def load_attendance_data(file_path):
         st.error(f"An error occurred while loading or processing the attendance data: {e}")
         return pd.DataFrame()
 
+# --- Load Media Data ---
+@st.cache_data # Cache data to improve performance
+def load_media_data(file_path):
+    """
+    Loads the media coverage data from a CSV file.
+    Uses 'publish_date' for dates and infers 'mentions' by counting rows.
+    """
+    try:
+        df = pd.read_csv(file_path)
+        
+        # Ensure 'publish_date' is datetime
+        if 'publish_date' in df.columns:
+            df['publish_date'] = pd.to_datetime(df['publish_date'], errors='coerce')
+            df.dropna(subset=['publish_date'], inplace=True)
+            df.rename(columns={'publish_date': 'Date'}, inplace=True) # Align column name
+        else:
+            st.warning("Column 'publish_date' not found in media data. Please ensure the CSV has a 'publish_date' column.")
+            return pd.DataFrame()
 
-attendance_file = "All Game Attendance.csv"
+        # Infer mentions by counting rows, useful if no explicit 'Mentions' column
+        # Each row is assumed to be one mention/article
+        df['Mentions'] = 1 
+        df['MonthYear'] = df['Date'].dt.to_period('M').astype(str)
+        df = df.sort_values(by='Date')
+
+        return df
+    except FileNotFoundError:
+        st.error(f"Error: The media file '{file_path}' was not found. Please make sure it's in the same directory as this script.")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"An error occurred while loading or processing the media data: {e}")
+        return pd.DataFrame()
+
+
+attendance_file = "All Game Attendance.csv" 
 df_attendance = load_attendance_data(attendance_file)
+
+media_file = "media.csv" 
+df_media = load_media_data(media_file)
 
 
 # --- Streamlit App Layout ---
 if not df_attendance.empty:
-    st.title("🏀 WNBA Game Attendance Dashboard")
+    # --- Text Size Slider ---
+    st.sidebar.header("Dashboard Settings")
+    font_size = st.sidebar.slider("Adjust Global Text Size (px)", min_value=12, max_value=24, value=16, step=1)
+
+    # Inject custom CSS for global text size adjustment
+    css = f"""
+    <style>
+        :root {{
+            --global-font-size: {font_size}px;
+        }}
+
+        /* Apply font size to common elements */
+        body, p, li, table, .stMarkdown, .stText, .stNumberInput, .stSelectbox, .stRadio, .stCheckbox, .stButton, .stTextInput, .stMultiSelect {{
+            font-size: var(--global-font-size) !important;
+        }}
+
+        h1 {{
+            font-size: calc(var(--global-font-size) * 2.2) !important;
+        }}
+        h2 {{
+            font-size: calc(var(--global-font-size) * 1.8) !important;
+        }}
+        h3 {{
+            font-size: calc(var(--global-font-size) * 1.5) !important;
+        }}
+        h4 {{
+            font-size: calc(var(--global-font-size) * 1.2) !important;
+        }}
+        h5, h6 {{
+            font-size: var(--global-font-size) !important;
+        }}
+
+        /* Adjust labels and internal text for specific widgets if needed */
+        div[data-testid="stSlider"] label p,
+        div[data-testid="stTextInput"] label p,
+        div[data-testid="stMultiSelect"] label p,
+        div[data-testid="stRadio"] label p,
+        div[data-testid="stCheckbox"] label p,
+        div[data-testid="stSelectbox"] label p {{
+            font-size: var(--global-font-size) !important;
+        }}
+
+        /* Adjust Streamlit specific elements */
+        .stButton > button {{
+            font-size: var(--global-font-size) !important;
+        }}
+        .streamlit-expanderHeader {{
+            font-size: var(--global-font-size) !important;
+        }}
+        .metric-value {{
+            font-size: calc(var(--global-font-size) * 1.5) !important; /* For st.metric values */
+        }}
+        .metric-label {{
+            font-size: var(--global-font-size) !important; /* For st.metric labels */
+        }}
+    </style>
+    """
+    st.markdown(css, unsafe_allow_html=True)
+
+    st.title("🏀 WNBA Game Attendance & Media Dashboard")
 
     st.markdown("""
-        Welcome to the interactive WNBA Attendance Dashboard! Explore game attendance trends
-        using the filters below and in the sidebar.
+        Welcome to the interactive WNBA Attendance and Media Dashboard! Explore game attendance trends
+        and compare them with media coverage using the filters below and in the sidebar.
         """)
 
     st.markdown("---") # Visual separator
@@ -177,14 +274,24 @@ if not df_attendance.empty:
     )
     
     # Filter the DataFrame based on ALL selections
-    filtered_df_attendance = df_attendance[
-        (df_attendance['Year'].isin(selected_years_slider)) & # Apply slider filter
-        (df_attendance['Game Type'].isin(selected_game_types)) &
-        (df_attendance['Home Team'].isin(selected_home_teams)) &
-        (df_attendance['Away Team'].isin(selected_away_teams)) &
-        (df_attendance['City'].isin(selected_cities)) &
-        (df_attendance['State'].isin(selected_states)) &
-        (df_attendance['Arena'].isin(selected_arenas))
+    # --- Start of Team Exclusion Filter ---
+    teams_to_exclude = ['Team Delle Donne', 'Team WNBA']
+    
+    # Filter out rows where either Home Team or Away Team is in the exclusion list
+    initial_filtered_df = df_attendance[
+        (~df_attendance['Home Team'].isin(teams_to_exclude)) &
+        (~df_attendance['Away Team'].isin(teams_to_exclude))
+    ]
+    # --- End of Team Exclusion Filter ---
+
+    filtered_df_attendance = initial_filtered_df[
+        (initial_filtered_df['Year'].isin(selected_years_slider)) & # Apply slider filter
+        (initial_filtered_df['Game Type'].isin(selected_game_types)) &
+        (initial_filtered_df['Home Team'].isin(selected_home_teams)) &
+        (initial_filtered_df['Away Team'].isin(selected_away_teams)) &
+        (initial_filtered_df['City'].isin(selected_cities)) &
+        (initial_filtered_df['State'].isin(selected_states)) &
+        (initial_filtered_df['Arena'].isin(selected_arenas))
     ]
 
     st.markdown("---") # Visual separator
@@ -251,6 +358,110 @@ if not df_attendance.empty:
             hoverlabel=dict(bgcolor="white", font_size=12, font_family="Arial")
         )
         st.plotly_chart(fig_line_attendance, use_container_width=True)
+
+        st.markdown("---")
+
+        # --- Overlay: Attendance vs. Media Coverage (Monthly) ---
+        st.subheader("📈 Attendance vs. Media Coverage (Monthly Trends)")
+
+        if not df_media.empty:
+            # Filter media data to only include years also present in filtered attendance data
+            # This aligns the time range for comparison
+            # Ensure 'Date' column exists in df_media before filtering by year
+            if 'Date' in df_media.columns:
+                filtered_df_media = df_media[df_media['Date'].dt.year.isin(selected_years_slider)]
+            else:
+                filtered_df_media = pd.DataFrame() # No 'Date' column in media, so no media filter
+
+            if not filtered_df_media.empty:
+                # Aggregate attendance by MonthYear
+                monthly_avg_attendance = filtered_df_attendance.groupby('MonthYear')['Attendance'].mean().reset_index()
+                monthly_avg_attendance['MonthYear'] = pd.to_datetime(monthly_avg_attendance['MonthYear']) # Convert to datetime for proper sorting
+                monthly_avg_attendance = monthly_avg_attendance.sort_values(by='MonthYear')
+                monthly_avg_attendance.rename(columns={'Attendance': 'Average Attendance'}, inplace=True)
+
+                # Aggregate media mentions by MonthYear (sum of mentions for the month)
+                monthly_media_mentions = filtered_df_media.groupby('MonthYear')['Mentions'].sum().reset_index()
+                monthly_media_mentions['MonthYear'] = pd.to_datetime(monthly_media_mentions['MonthYear']) # Convert to datetime for proper sorting
+                monthly_media_mentions = monthly_media_mentions.sort_values(by='MonthYear')
+                monthly_media_mentions.rename(columns={'Mentions': 'Total Media Mentions'}, inplace=True)
+
+                # Merge the two aggregated dataframes
+                # Use 'outer' merge to keep all months from both datasets
+                combined_df = pd.merge(monthly_avg_attendance, monthly_media_mentions, on='MonthYear', how='outer')
+                combined_df = combined_df.sort_values(by='MonthYear')
+
+                if not combined_df.empty:
+                    fig_overlay = make_subplots(specs=[[{"secondary_y": True}]])
+
+                    # Add Attendance trace
+                    fig_overlay.add_trace(
+                        go.Scatter(
+                            x=combined_df['MonthYear'], 
+                            y=combined_df['Average Attendance'], 
+                            name='Average Attendance', 
+                            mode='lines+markers', 
+                            line=dict(color='blue', width=2),
+                            hovertemplate='<b>Month:</b> %{x|%b %Y}<br><b>Avg. Attendance:</b> %{y:,.0f}<extra></extra>'
+                        ),
+                        secondary_y=False,
+                    )
+
+                    # Add Media Mentions trace
+                    fig_overlay.add_trace(
+                        go.Scatter(
+                            x=combined_df['MonthYear'], 
+                            y=combined_df['Total Media Mentions'], 
+                            name='Total Media Mentions', 
+                            mode='lines+markers', 
+                            line=dict(color='red', width=2),
+                            hovertemplate='<b>Month:</b> %{x|%b %Y}<br><b>Total Mentions:</b> %{y:,.0f}<extra></extra>'
+                        ),
+                        secondary_y=True,
+                    )
+
+                    # Add titles and labels
+                    fig_overlay.update_layout(
+                        title_text='Average WNBA Attendance vs. Total Media Mentions Over Time',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        font_color='black',
+                        margin=dict(l=20, r=20, t=60, b=20),
+                        xaxis_title_font_size=14,
+                        yaxis_title_font_size=14,
+                        title_font_size=20,
+                        hovermode="x unified",
+                        hoverlabel=dict(bgcolor="white", font_size=12, font_family="Arial"),
+                        legend=dict(x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.8)', bordercolor='lightgray', borderwidth=1)
+                    )
+
+                    fig_overlay.update_xaxes(
+                        title_text="Month & Year", 
+                        showgrid=True, 
+                        gridcolor='lightgray',
+                        tickformat="%b %Y" # Format date ticks for month and year
+                    )
+                    fig_overlay.update_yaxes(
+                        title_text="Average Attendance", 
+                        secondary_y=False, 
+                        showgrid=True, 
+                        gridcolor='lightgray',
+                        tickformat=",0f" # Format attendance with commas
+                    )
+                    fig_overlay.update_yaxes(
+                        title_text="Total Media Mentions", 
+                        secondary_y=True, 
+                        showgrid=False, # Disable grid for secondary y-axis to avoid clutter
+                        tickformat=",0f" # Format mentions with commas
+                    )
+
+                    st.plotly_chart(fig_overlay, use_container_width=True)
+                else:
+                    st.info("No combined attendance and media data available for the selected filters (after merging).")
+            else:
+                st.info("No media coverage data matches the selected year filters. Please adjust your year range.")
+        else:
+            st.info("Media coverage data (`media.csv`) not found or is empty. Please ensure it's in the correct directory, and has a 'publish_date' column.")
 
         st.markdown("---")
 
@@ -362,5 +573,13 @@ if not df_attendance.empty:
         with st.expander("Show Detailed Attendance Data 📋"):
             st.dataframe(filtered_df_attendance.style.highlight_max(axis=0, subset=['Attendance'], color='lightblue'))
 
+        with st.expander("Show Detailed Media Data 📰"):
+            # Display original media data with relevant columns for user review
+            # Check if 'Date' column exists before trying to display it
+            display_media_df = df_media[['id', 'Date', 'title', 'media_name', 'url']] if 'Date' in df_media.columns else df_media[['id', 'title', 'media_name', 'url']]
+            st.dataframe(display_media_df)
 else:
     st.info("Attendance data (`All Game Attendance.csv`) not found or is empty. Please ensure it's in the correct directory.")
+
+    if df_media.empty:
+        st.info("Media coverage data (`media.csv`) also not found or is empty.")
