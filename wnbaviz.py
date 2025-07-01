@@ -280,7 +280,6 @@ if not df_attendance.empty:
         (initial_filtered_df['Home Team'].isin(selected_home_teams)) &
         (initial_filtered_df['Away Team'].isin(selected_away_teams)) &
         (initial_filtered_df['City'].isin(selected_cities)) &
-        (initial_filtered_df['State'].isin(selected_states)) &
         (initial_filtered_df['Arena'].isin(selected_arenas))
     ]
 
