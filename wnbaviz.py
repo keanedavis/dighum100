@@ -178,7 +178,8 @@ if not df_attendance.empty:
     st.title("🏀 WNBA Game Attendance & Media Dashboard")
 
     st.markdown("""
-        Explore game attendance trends and compare them with media coverage using the filters below and in the sidebar.
+        Welcome to the interactive WNBA Attendance and Media Dashboard! Explore game attendance trends
+        and compare them with media coverage using the filters below and in the sidebar.
         """)
 
     st.markdown("---") # Visual separator
@@ -212,7 +213,7 @@ if not df_attendance.empty:
     # Game Type Selector
     all_game_types = df_attendance['Game Type'].unique().tolist()
     selected_game_types = st.sidebar.multiselect(
-        "Game Type",
+        "Select Game Type(s)",
         options=all_game_types,
         default=all_game_types,
         help="Filter by Regular Season, Playoffs, All-Star, etc."
@@ -221,7 +222,7 @@ if not df_attendance.empty:
     # Home Team Selector
     all_home_teams = sorted(df_attendance['Home Team'].unique().tolist())
     selected_home_teams = st.sidebar.multiselect(
-        "Home Team(s)",
+        "Select Home Team(s)",
         options=all_home_teams,
         default=all_home_teams,
         help="Include or exclude specific home teams."
@@ -230,7 +231,7 @@ if not df_attendance.empty:
     # Away Team Selector
     all_away_teams = sorted(df_attendance['Away Team'].unique().tolist())
     selected_away_teams = st.sidebar.multiselect(
-        "Away Team(s)",
+        "Select Away Team(s)",
         options=all_away_teams,
         default=all_away_teams,
         help="Include or exclude specific away teams."
@@ -239,16 +240,25 @@ if not df_attendance.empty:
     # City Selector
     all_cities = sorted(df_attendance['City'].unique().tolist())
     selected_cities = st.sidebar.multiselect(
-        "City",
+        "Select City(ies)",
         options=all_cities,
         default=all_cities,
         help="Filter games by the city they were played in."
+    )
+
+    # State Selector
+    all_states = sorted(df_attendance['State'].unique().tolist())
+    selected_states = st.sidebar.multiselect(
+        "Select State(s)",
+        options=all_states,
+        default=all_states,
+        help="Filter games by the state they were played in."
     )
     
     # Arena Selector
     all_arenas = sorted(df_attendance['Arena'].unique().tolist())
     selected_arenas = st.sidebar.multiselect(
-        "Arena",
+        "Select Arena(s)",
         options=all_arenas,
         default=all_arenas,
         help="Filter games by specific arenas."
@@ -258,13 +268,16 @@ if not df_attendance.empty:
 
     # Attendance Aggregation Level
     aggregation_level = st.sidebar.radio(
-        "Aggregate attendance:",
+        "Aggregate Attendance Trends By",
         ('Daily', 'Monthly', 'Yearly'),
         help="Choose the granularity for the attendance trend line chart."
     )
     
+    # Define offseason months (November to April)
+    offseason_months = [11, 12, 1, 2, 3, 4]
+
     # Filter the DataFrame based on ALL selections
-    # --- Start of Team Exclusion Filter ---
+    # --- Start of Team and Offseason Exclusion Filter ---
     teams_to_exclude = ['Team Delle Donne', 'Team WNBA']
     
     # Filter out rows where either Home Team or Away Team is in the exclusion list
@@ -272,7 +285,10 @@ if not df_attendance.empty:
         (~df_attendance['Home Team'].isin(teams_to_exclude)) &
         (~df_attendance['Away Team'].isin(teams_to_exclude))
     ]
-    # --- End of Team Exclusion Filter ---
+
+    # Filter out offseason months from attendance data
+    initial_filtered_df = initial_filtered_df[~initial_filtered_df['Date'].dt.month.isin(offseason_months)]
+    # --- End of Team and Offseason Exclusion Filter ---
 
     filtered_df_attendance = initial_filtered_df[
         (initial_filtered_df['Year'].isin(selected_years_slider)) & # Apply slider filter
@@ -280,6 +296,7 @@ if not df_attendance.empty:
         (initial_filtered_df['Home Team'].isin(selected_home_teams)) &
         (initial_filtered_df['Away Team'].isin(selected_away_teams)) &
         (initial_filtered_df['City'].isin(selected_cities)) &
+        (initial_filtered_df['State'].isin(selected_states)) &
         (initial_filtered_df['Arena'].isin(selected_arenas))
     ]
 
@@ -359,6 +376,8 @@ if not df_attendance.empty:
             # Ensure 'Date' column exists in df_media before filtering by year
             if 'Date' in df_media.columns:
                 filtered_df_media = df_media[df_media['Date'].dt.year.isin(selected_years_slider)]
+                # Filter out offseason months from media data
+                filtered_df_media = filtered_df_media[~filtered_df_media['Date'].dt.month.isin(offseason_months)]
             else:
                 filtered_df_media = pd.DataFrame() # No 'Date' column in media, so no media filter
 
@@ -448,7 +467,7 @@ if not df_attendance.empty:
                 else:
                     st.info("No combined attendance and media data available for the selected filters (after merging).")
             else:
-                st.info("No media coverage data matches the selected year filters. Please adjust your year range.")
+                st.info("No media coverage data matches the selected year or offseason filters. Please adjust your selections.")
         else:
             st.info("Media coverage data (`media.csv`) not found or is empty. Please ensure it's in the correct directory, and has a 'publish_date' column.")
 
@@ -528,13 +547,17 @@ if not df_attendance.empty:
         st.subheader("📅 Average Attendance by Month")
         # Define a consistent order for months
         month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        avg_attendance_by_month = filtered_df_attendance.groupby('MonthName')['Attendance'].mean().reindex(month_order).reset_index()
+        # Re-filter months based on *actual* months remaining in filtered data and then reorder
+        avg_attendance_by_month = filtered_df_attendance.groupby('MonthName')['Attendance'].mean().reset_index()
+        # Ensure only relevant months appear in the chart, and in correct order
+        avg_attendance_by_month['MonthName'] = pd.Categorical(avg_attendance_by_month['MonthName'], categories=month_order, ordered=True)
+        avg_attendance_by_month = avg_attendance_by_month.sort_values('MonthName')
         
         fig_bar_month = px.bar(
             avg_attendance_by_month,
             x='MonthName',
             y='Attendance',
-            title='Average Attendance by Month',
+            title='Average Attendance by Month (Excluding Offseason)',
             labels={'MonthName': 'Month', 'Attendance': 'Average Attendance'},
             hover_data={'Attendance': ':.0f'},
             template="plotly_white",
