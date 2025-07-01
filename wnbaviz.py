@@ -258,7 +258,7 @@ if not df_attendance.empty:
 
     # Attendance Aggregation Level
     aggregation_level = st.sidebar.radio(
-        "Aggregate Attendance Trends By",
+        "Aggregate attendance:",
         ('Daily', 'Monthly', 'Yearly'),
         help="Choose the granularity for the attendance trend line chart."
     )
