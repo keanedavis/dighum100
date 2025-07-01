@@ -210,13 +210,6 @@ if not df_attendance.empty:
     st.sidebar.header("Additional Filter Options")
     st.sidebar.markdown("Adjust these filters to refine the data displayed in the charts.")
 
-    # Offseason filter option - Inverted logic: True means "smooth line (include offseason)", False means "exclude (gap)"
-    filter_offseason_smooth = st.sidebar.checkbox(
-        "Show Offseason Trend (Smooth Line)",
-        value=True,  # Default is ON, means show smooth line over offseason
-        help="Check to show a continuous trend line including offseason months. Uncheck to filter out offseason data and create gaps."
-    )
-
     # Game Type Selector
     all_game_types = df_attendance['Game Type'].unique().tolist()
     selected_game_types = st.sidebar.multiselect(
@@ -280,23 +273,16 @@ if not df_attendance.empty:
         help="Choose the granularity for the attendance trend line chart."
     )
     
-    # Define offseason months (November to April)
-    offseason_months = [11, 12, 1, 2, 3, 4]
-
     # Filter the DataFrame based on ALL selections
-    # --- Start of Team and Offseason Exclusion Filter ---
+    # --- Start of Team Exclusion Filter ---
     teams_to_exclude = ['Team Delle Donne', 'Team WNBA']
     
-    # Filter out rows where either Home Team or Away Team is in the exclusion list (always applies)
+    # Filter out rows where either Home Team or Away Team is in the exclusion list
     initial_filtered_df = df_attendance[
         (~df_attendance['Home Team'].isin(teams_to_exclude)) &
         (~df_attendance['Away Team'].isin(teams_to_exclude))
     ]
-
-    # Apply offseason filter if the checkbox is UNCHECKED (i.e., we want to exclude offseason)
-    if not filter_offseason_smooth:
-        initial_filtered_df = initial_filtered_df[~initial_filtered_df['Date'].dt.month.isin(offseason_months)]
-    # --- End of Team and Offseason Exclusion Filter ---
+    # --- End of Team Exclusion Filter ---
 
     filtered_df_attendance = initial_filtered_df[
         (initial_filtered_df['Year'].isin(selected_years_slider)) & # Apply slider filter
@@ -315,9 +301,6 @@ if not df_attendance.empty:
     if filtered_df_attendance.empty:
         st.error("No attendance data matches the selected filters. Please adjust your selections in the slider and sidebar.")
     else:
-        # Define line shape based on checkbox state
-        line_shape_value = 'spline' if filter_offseason_smooth else 'linear'
-
         # --- Key Metrics ---
         st.subheader("📊 Key Attendance Metrics")
         col1, col2, col3, col4 = st.columns(4)
@@ -360,7 +343,6 @@ if not df_attendance.empty:
             template="plotly_white" # Use a clean white template
         )
 
-        fig_line_attendance.update_traces(mode='lines+markers', line=dict(shape=line_shape_value)) # Apply shape here
         fig_line_attendance.update_xaxes(showgrid=True, gridcolor='lightgray')
         fig_line_attendance.update_yaxes(showgrid=True, gridcolor='lightgray')
 
@@ -388,23 +370,12 @@ if not df_attendance.empty:
             # Ensure 'Date' column exists in df_media before filtering by year
             if 'Date' in df_media.columns:
                 filtered_df_media = df_media[df_media['Date'].dt.year.isin(selected_years_slider)]
-                # Apply offseason filter to media data if checkbox is UNCHECKED
-                if not filter_offseason_smooth:
-                    filtered_df_media = filtered_df_media[~filtered_df_media['Date'].dt.month.isin(offseason_months)]
             else:
                 filtered_df_media = pd.DataFrame() # No 'Date' column in media, so no media filter
 
             if not filtered_df_media.empty:
                 # Aggregate attendance by MonthYear
-                # Use initial_filtered_df (before general filtering) for aggregation here
-                # to get all monthly attendance if "smooth line" is selected
-                # Then apply general filters to this aggregated data for consistency
-                if filter_offseason_smooth: # If smooth line is on, use initial_filtered_df for aggregation
-                    monthly_avg_attendance = initial_filtered_df.groupby('MonthYear')['Attendance'].mean().reset_index()
-                else: # If smooth line is off (gaps), use already filtered_df_attendance
-                     monthly_avg_attendance = filtered_df_attendance.groupby('MonthYear')['Attendance'].mean().reset_index()
-
-
+                monthly_avg_attendance = filtered_df_attendance.groupby('MonthYear')['Attendance'].mean().reset_index()
                 monthly_avg_attendance['MonthYear'] = pd.to_datetime(monthly_avg_attendance['MonthYear']) # Convert to datetime for proper sorting
                 monthly_avg_attendance = monthly_avg_attendance.sort_values(by='MonthYear')
                 monthly_avg_attendance.rename(columns={'Attendance': 'Average Attendance'}, inplace=True)
@@ -430,7 +401,7 @@ if not df_attendance.empty:
                             y=combined_df['Average Attendance'], 
                             name='Average Attendance', 
                             mode='lines+markers', 
-                            line=dict(color='blue', width=2, shape=line_shape_value), # Apply shape here
+                            line=dict(color='blue', width=2),
                             hovertemplate='<b>Month:</b> %{x|%b %Y}<br><b>Avg. Attendance:</b> %{y:,.0f}<extra></extra>'
                         ),
                         secondary_y=False,
@@ -443,7 +414,7 @@ if not df_attendance.empty:
                             y=combined_df['Total Media Mentions'], 
                             name='Total Media Mentions', 
                             mode='lines+markers', 
-                            line=dict(color='red', width=2, shape=line_shape_value), # Apply shape here
+                            line=dict(color='red', width=2),
                             hovertemplate='<b>Month:</b> %{x|%b %Y}<br><b>Total Mentions:</b> %{y:,.0f}<extra></extra>'
                         ),
                         secondary_y=True,
@@ -488,7 +459,7 @@ if not df_attendance.empty:
                 else:
                     st.info("No combined attendance and media data available for the selected filters (after merging).")
             else:
-                st.info("No media coverage data matches the selected year or offseason filters. Please adjust your selections.")
+                st.info("No media coverage data matches the selected year filters. Please adjust your year range.")
         else:
             st.info("Media coverage data (`media.csv`) not found or is empty. Please ensure it's in the correct directory, and has a 'publish_date' column.")
 
@@ -568,18 +539,7 @@ if not df_attendance.empty:
         st.subheader("📅 Average Attendance by Month")
         # Define a consistent order for months
         month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        
-        # Determine the DataFrame to use for monthly aggregation based on filter_offseason_smooth
-        if filter_offseason_smooth:
-            # Use initial_filtered_df (which retains offseason data if smooth line is desired)
-            avg_attendance_by_month = initial_filtered_df.groupby('MonthName')['Attendance'].mean().reset_index()
-        else:
-            # Use filtered_df_attendance (which has offseason filtered out if gaps are desired)
-            avg_attendance_by_month = filtered_df_attendance.groupby('MonthName')['Attendance'].mean().reset_index()
-
-        # Ensure only relevant months appear in the chart, and in correct order
-        avg_attendance_by_month['MonthName'] = pd.Categorical(avg_attendance_by_month['MonthName'], categories=month_order, ordered=True)
-        avg_attendance_by_month = avg_attendance_by_month.sort_values('MonthName')
+        avg_attendance_by_month = filtered_df_attendance.groupby('MonthName')['Attendance'].mean().reindex(month_order).reset_index()
         
         fig_bar_month = px.bar(
             avg_attendance_by_month,
