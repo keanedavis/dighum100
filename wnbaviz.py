@@ -419,7 +419,7 @@ if not df_attendance.empty:
 
         st.markdown("---")
         
-        # --- NEW GRAPH: Overlay: Attendance vs. Google Search Trends (Monthly) ---
+        # --- NEW GRAPH POSITION: Overlay: Attendance vs. Google Search Trends (Monthly) ---
         st.subheader("📊 Attendance vs. Google Search Trends (Monthly Trends)")
 
         if not df_search_trends.empty:
