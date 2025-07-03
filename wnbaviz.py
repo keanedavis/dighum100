@@ -113,6 +113,7 @@ def load_search_trends_data(file_path):
     """
     Loads Google Search Trend data from a CSV file.
     Assumes 'Month' column for date and 'WNBA' for search volume.
+    Adjusted to skip initial metadata rows common in Google Trends exports.
     """
     try:
         # No 'skiprows' needed as confirmed by user, header is on the first line.
@@ -168,7 +169,8 @@ if not df_attendance.empty:
     files_in_directory = os.listdir(current_working_directory)
     st.error(f"Files found in this directory: {files_in_directory}")
     
-    target_filename_lower = 'google.csv'.lower()
+    # Check for the specific file
+    target_filename_lower = 'google.csv'.lower() # Updated for 'google.csv'
     found_it = False
     for f_name in files_in_directory:
         if f_name.lower() == target_filename_lower:
@@ -657,4 +659,148 @@ if not df_attendance.empty:
 
                     st.plotly_chart(fig_overlay, use_container_width=True)
                 else:
-                    st.info("No combined attendance and media data available for the selected filters (
+                    st.info("No combined attendance and media data available for the selected filters (after merging).")
+            else:
+                st.info("No media coverage data matches the selected year or offseason filters. Please adjust your selections.")
+        else:
+            st.info("Media coverage data (`media.csv`) not found or is empty. Please ensure it's in the correct directory, and has a 'publish_date' column.")
+
+        st.markdown("---")
+
+        # --- Attendance by Home Team ---
+        st.subheader("🏟️ Average Attendance by Home Team")
+        avg_attendance_by_home_team = filtered_df_attendance.groupby('Home Team')['Attendance'].mean().reset_index()
+        avg_attendance_by_home_team = avg_attendance_by_home_team.sort_values(by='Attendance', ascending=False)
+
+        # Generate team color map based on current filtered teams
+        current_home_teams = avg_attendance_by_home_team['Home Team'].unique().tolist()
+        team_color_map = get_team_color_map(current_home_teams)
+
+        fig_bar_team = px.bar(
+            avg_attendance_by_home_team,
+            x='Home Team',
+            y='Attendance',
+            title='Average Attendance per Home Team',
+            labels={'Home Team': 'Home Team', 'Attendance': 'Average Attendance'},
+            hover_data={'Attendance': ':.0f'},
+            color='Home Team', # Color bars by team
+            color_discrete_map=team_color_map, # Apply custom color map
+            template="plotly_white"
+        )
+        fig_bar_team.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font_color='black',
+            margin=dict(l=20, r=20, t=60, b=20),
+            xaxis_title_font_size=14,
+            yaxis_title_font_size=14,
+            title_font_size=20,
+            hoverlabel=dict(bgcolor="white", font_size=12, font_family="Arial")
+        )
+        fig_bar_team.update_xaxes(tickangle=-45, showgrid=False) # Angle labels for readability
+        fig_bar_team.update_yaxes(showgrid=True, gridcolor='lightgray')
+        st.plotly_chart(fig_bar_team, use_container_width=True)
+
+        st.markdown("---")
+
+        # --- Attendance by Day of Week ---
+        st.subheader("🗓️ Average Attendance by Day of Week")
+        # Define a consistent order for days of the week
+        day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        avg_attendance_by_day = filtered_df_attendance.groupby('DayOfWeek')['Attendance'].mean().reindex(day_order).reset_index()
+        
+        fig_bar_day = px.bar(
+            avg_attendance_by_day,
+            x='DayOfWeek',
+            y='Attendance',
+            title='Average Attendance by Day of the Week',
+            labels={'DayOfWeek': 'Day of Week', 'Attendance': 'Average Attendance'},
+            hover_data={'Attendance': ':.0f'},
+            template="plotly_white",
+            color='DayOfWeek', # Color by day of week
+            color_discrete_sequence=px.colors.qualitative.Pastel # Use a pastel palette for days
+        )
+        fig_bar_day.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font_color='black',
+            margin=dict(l=20, r=20, t=60, b=20),
+            xaxis_title_font_size=14,
+            yaxis_title_font_size=14,
+            title_font_size=20,
+            xaxis={'categoryorder':'array', 'categoryarray':day_order}, # Ensure consistent order
+            hoverlabel=dict(bgcolor="white", font_size=12, font_family="Arial")
+        )
+        fig_bar_day.update_xaxes(showgrid=False)
+        fig_bar_day.update_yaxes(showgrid=True, gridcolor='lightgray')
+        st.plotly_chart(fig_bar_day, use_container_width=True)
+
+        st.markdown("---")
+
+        # --- Attendance by Month ---
+        st.subheader("📅 Average Attendance by Month")
+        # Define a consistent order for months
+        month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        
+        # Determine the DataFrame to use for monthly aggregation based on filter_offseason_smooth
+        if filter_offseason_smooth:
+            # Use initial_filtered_df (which retains offseason data if smooth line is desired)
+            avg_attendance_by_month = initial_filtered_df.groupby('MonthName')['Attendance'].mean().reset_index()
+        else:
+            # Use filtered_df_attendance (which has offseason filtered out if gaps are desired)
+            avg_attendance_by_month = filtered_df_attendance.groupby('MonthName')['Attendance'].mean().reset_index()
+
+        # Ensure only relevant months appear in the chart, and in correct order
+        avg_attendance_by_month['MonthName'] = pd.Categorical(avg_attendance_by_month['MonthName'], categories=month_order, ordered=True)
+        avg_attendance_by_month = avg_attendance_by_month.sort_values('MonthName')
+        
+        fig_bar_month = px.bar(
+            avg_attendance_by_month,
+            x='MonthName',
+            y='Attendance',
+            title='Average Attendance by Month',
+            labels={'MonthName': 'Month', 'Attendance': 'Average Attendance'},
+            hover_data={'Attendance': ':.0f'},
+            template="plotly_white",
+            color='MonthName', # Color by month
+            color_discrete_sequence=px.colors.qualitative.Set2 # Use another palette for colors
+        )
+        fig_bar_month.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font_color='black',
+            margin=dict(l=20, r=20, t=60, b=20),
+            xaxis_title_font_size=14,
+            yaxis_title_font_size=14,
+            title_font_size=20,
+            xaxis={'categoryorder':'array', 'categoryarray':month_order}, # Ensure consistent order
+            hoverlabel=dict(bgcolor="white", font_size=12, font_family="Arial")
+        )
+        fig_bar_month.update_xaxes(showgrid=False)
+        fig_bar_month.update_yaxes(showgrid=True, gridcolor='lightgray')
+        st.plotly_chart(fig_bar_month, use_container_width=True)
+
+        st.markdown("---")
+
+        # --- Detailed Data Section (Collapsible) ---
+        with st.expander("Show Detailed Attendance Data 📋"):
+            st.dataframe(filtered_df_attendance.style.highlight_max(axis=0, subset=['Attendance'], color='lightblue'))
+
+        with st.expander("Show Detailed Media Data 📰"):
+            # Display original media data with relevant columns for user review
+            # Check if 'Date' column exists before trying to display it
+            display_media_df = df_media[['id', 'Date', 'title', 'media_name', 'url']] if 'Date' in df_media.columns else df_media[['id', 'title', 'media_name', 'url']]
+            st.dataframe(display_media_df)
+        
+        with st.expander("Show Detailed Google Search Trends Data 🔎"):
+            # Display original search trends data with relevant columns for user review
+            display_search_df = df_search_trends[['Date', 'WNBA']] if 'Date' in df_search_trends.columns else df_search_trends[['WNBA']]
+            st.dataframe(display_search_df)
+
+else:
+    st.info("Attendance data (`All Game Attendance.csv`) not found or is empty. Please ensure it's in the correct directory.")
+
+    if df_media.empty:
+        st.info("Media coverage data (`media.csv`) also not found or is empty.")
+    if df_search_trends.empty:
+        st.info("Google Search Trends data (`google.csv`) also not found or is empty.")
