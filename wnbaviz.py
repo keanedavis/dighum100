@@ -152,7 +152,6 @@ df_attendance = load_attendance_data(attendance_file)
 media_file = "media.csv" 
 df_media = load_media_data(media_file)
 
-# --- Corrected filename ---
 search_trends_file = "google.csv" 
 df_search_trends = load_search_trends_data(search_trends_file)
 
