@@ -113,7 +113,6 @@ def load_search_trends_data(file_path):
     """
     Loads Google Search Trend data from a CSV file.
     Assumes 'Month' column for date and 'WNBA' for search volume.
-    Adjusted to skip initial metadata rows common in Google Trends exports.
     """
     try:
         # No 'skiprows' needed as confirmed by user, header is on the first line.
@@ -160,30 +159,6 @@ df_search_trends = load_search_trends_data(search_trends_file)
 
 # --- Streamlit App Layout ---
 if not df_attendance.empty:
-    # --- DEBUGGING FILE PATH START ---
-    # This debugging block helps verify file paths and contents. You can remove it once everything is working.
-    st.error("--- DEBUGGING FILE PATH (You can remove this block later) ---")
-    current_working_directory = os.getcwd()
-    st.error(f"Current working directory (where Python is looking): {current_working_directory}")
-    
-    files_in_directory = os.listdir(current_working_directory)
-    st.error(f"Files found in this directory: {files_in_directory}")
-    
-    # Check for the specific file
-    target_filename_lower = 'google.csv'.lower() # Updated for 'google.csv'
-    found_it = False
-    for f_name in files_in_directory:
-        if f_name.lower() == target_filename_lower:
-            st.success(f"'{f_name}' (google.csv) **FOUND** in the current directory.")
-            found_it = True
-            break
-    
-    if not found_it:
-        st.error(f"'{target_filename_lower}' **NOT FOUND** in the current directory. Please ensure it's truly there and spelled correctly (case-sensitive if your OS requires).")
-        st.error("Also, check for hidden file extensions (e.g., 'google.csv.txt' or 'google.csv.csv').")
-        st.info("You can try renaming your file to something very simple like `my_trends.csv` and updating the script.")
-
-    st.error("--- END DEBUGGING FILE PATH ---")
     # --- Text Size Slider ---
     st.sidebar.header("Dashboard Settings")
     font_size = st.sidebar.slider("Adjust Global Text Size (px)", min_value=12, max_value=24, value=16, step=1)
