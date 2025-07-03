@@ -112,9 +112,13 @@ def load_search_trends_data(file_path):
     """
     Loads Google Search Trend data from a CSV file.
     Assumes 'Month' column for date and 'WNBA' for search volume.
+    Adjusted to skip initial metadata rows common in Google Trends exports.
     """
     try:
-        df = pd.read_csv(file_path)
+        # --- IMPORTANT ADJUSTMENT: Skipping rows ---
+        # Google Trends CSVs often have metadata in the first few rows.
+        # We assume the actual header is on the 3rd row (index 2).
+        df = pd.read_csv(file_path, skiprows=2) 
         
         # Convert 'Month' to datetime
         if 'Month' in df.columns:
@@ -122,7 +126,7 @@ def load_search_trends_data(file_path):
             df.dropna(subset=['Month'], inplace=True)
             df.rename(columns={'Month': 'Date'}, inplace=True) # Align column name to 'Date'
         else:
-            st.warning("Column 'Month' not found in search trends data. Please check the file.")
+            st.warning(f"Column 'Month' not found in search trends data from '{file_path}'. Please check its exact name and casing.")
             return pd.DataFrame()
 
         # Ensure 'WNBA' is numeric
@@ -130,7 +134,7 @@ def load_search_trends_data(file_path):
             df['WNBA'] = pd.to_numeric(df['WNBA'], errors='coerce')
             df.dropna(subset=['WNBA'], inplace=True)
         else:
-            st.warning("Column 'WNBA' not found in search trends data. Please check the file.")
+            st.warning(f"Column 'WNBA' not found in search trends data from '{file_path}'. Please check its exact name and casing.")
             return pd.DataFrame()
 
         df['MonthYear'] = df['Date'].dt.to_period('M').astype(str)
@@ -141,7 +145,7 @@ def load_search_trends_data(file_path):
         st.error(f"Error: The search trends file '{file_path}' was not found. Please make sure it's in the same directory as this script.")
         return pd.DataFrame()
     except Exception as e:
-        st.error(f"An error occurred while loading or processing the search trends data: {e}")
+        st.error(f"An error occurred while loading or processing the search trends data: {e}. You might need to adjust 'skiprows' or column names.")
         return pd.DataFrame()
 
 attendance_file = "All Game Attendance.csv" 
@@ -150,8 +154,8 @@ df_attendance = load_attendance_data(attendance_file)
 media_file = "media.csv" 
 df_media = load_media_data(media_file)
 
-# --- Updated filename here ---
-search_trends_file = "google.csv" 
+# --- Corrected filename ---
+search_trends_file = "trends.csv" 
 df_search_trends = load_search_trends_data(search_trends_file)
 
 
@@ -524,7 +528,7 @@ if not df_attendance.empty:
             else:
                 st.info("No Google Search Trends data matches the selected year or offseason filters. Please adjust your selections.")
         else:
-            st.info("Google Search Trends data (`google.csv`) not found or is empty. Please ensure it's in the correct directory, and has 'Month' and 'WNBA' columns.")
+            st.info("Google Search Trends data (`trends.csv`) not found or is empty. Please ensure it's in the correct directory, and has 'Month' and 'WNBA' columns.")
 
         st.markdown("---")
 
@@ -776,4 +780,4 @@ else:
     if df_media.empty:
         st.info("Media coverage data (`media.csv`) also not found or is empty.")
     if df_search_trends.empty:
-        st.info("Google Search Trends data (`google.csv`) also not found or is empty.")
+        st.info("Google Search Trends data (`trends.csv`) also not found or is empty.")
