@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -806,4 +805,3 @@ else:
         st.info("Media coverage data (`media.csv`) also not found or is empty.")
     if df_search_trends.empty:
         st.info("Google Search Trends data (`trends.csv`) also not found or is empty.")
-```
