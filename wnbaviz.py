@@ -156,7 +156,7 @@ media_file = "media.csv"
 df_media = load_media_data(media_file)
 
 # --- Corrected filename ---
-search_trends_file = "trends.csv" 
+search_trends_file = "google.csv" 
 df_search_trends = load_search_trends_data(search_trends_file)
 
 
@@ -171,17 +171,17 @@ if not df_attendance.empty:
     st.error(f"Files found in this directory: {files_in_directory}")
     
     # Check for the specific file
-    target_filename_lower = 'trends.csv'.lower()
+    target_filename_lower = 'google.csv'.lower() # Updated for 'google.csv'
     found_it = False
     for f_name in files_in_directory:
         if f_name.lower() == target_filename_lower:
-            st.success(f"'{f_name}' (trends.csv) **FOUND** in the current directory.")
+            st.success(f"'{f_name}' (google.csv) **FOUND** in the current directory.")
             found_it = True
             break
     
     if not found_it:
         st.error(f"'{target_filename_lower}' **NOT FOUND** in the current directory. Please ensure it's truly there and spelled correctly (case-sensitive if your OS requires).")
-        st.error("Also, check for hidden file extensions (e.g., 'trends.csv.txt' or 'trends.csv.csv').")
+        st.error("Also, check for hidden file extensions (e.g., 'google.csv.txt' or 'google.csv.csv').")
         st.info("You can try renaming your file to something very simple like `my_trends.csv` and updating the script.")
 
     st.error("--- END DEBUGGING FILE PATH ---")
@@ -552,7 +552,7 @@ if not df_attendance.empty:
             else:
                 st.info("No Google Search Trends data matches the selected year or offseason filters. Please adjust your selections.")
         else:
-            st.info("Google Search Trends data (`trends.csv`) not found or is empty. Please ensure it's in the correct directory, and has 'Month' and 'WNBA' columns.")
+            st.info("Google Search Trends data (`google.csv`) not found or is empty. Please ensure it's in the correct directory, and has 'Month' and 'WNBA' columns.")
 
         st.markdown("---")
 
@@ -804,4 +804,4 @@ else:
     if df_media.empty:
         st.info("Media coverage data (`media.csv`) also not found or is empty.")
     if df_search_trends.empty:
-        st.info("Google Search Trends data (`trends.csv`) also not found or is empty.")
+        st.info("Google Search Trends data (`google.csv`) also not found or is empty.")
