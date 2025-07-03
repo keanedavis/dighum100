@@ -150,7 +150,8 @@ df_attendance = load_attendance_data(attendance_file)
 media_file = "media.csv" 
 df_media = load_media_data(media_file)
 
-search_trends_file = "multiTimeline.csv"
+# --- Updated filename here ---
+search_trends_file = "google.csv" 
 df_search_trends = load_search_trends_data(search_trends_file)
 
 
@@ -523,7 +524,7 @@ if not df_attendance.empty:
             else:
                 st.info("No Google Search Trends data matches the selected year or offseason filters. Please adjust your selections.")
         else:
-            st.info("Google Search Trends data (`multiTimeline.csv`) not found or is empty. Please ensure it's in the correct directory, and has 'Month' and 'WNBA' columns.")
+            st.info("Google Search Trends data (`google.csv`) not found or is empty. Please ensure it's in the correct directory, and has 'Month' and 'WNBA' columns.")
 
         st.markdown("---")
 
@@ -775,4 +776,4 @@ else:
     if df_media.empty:
         st.info("Media coverage data (`media.csv`) also not found or is empty.")
     if df_search_trends.empty:
-        st.info("Google Search Trends data (`multiTimeline.csv`) also not found or is empty.")
+        st.info("Google Search Trends data (`google.csv`) also not found or is empty.")
