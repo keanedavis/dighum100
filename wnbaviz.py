@@ -226,14 +226,12 @@ if not df_attendance.empty:
 
     st.markdown("---") # Visual separator
 
-    # --- Sidebar Filters ---
-    st.sidebar.header("Additional Filter Options")
-
-    # --- Year Slider (Moved to Sidebar) ---
+    # --- Year Slider (Main Content Area - Moved Back to Top) ---
+    st.header("Filter Data by Year Range")
     all_years_in_data = sorted(df_attendance['Year'].unique().tolist())
     
     if len(all_years_in_data) > 1:
-        min_year, max_year = st.sidebar.slider( # Changed to st.sidebar.slider
+        min_year, max_year = st.slider( # Back to st.slider
             "Select a Year Range",
             min_value=min(all_years_in_data),
             max_value=max(all_years_in_data),
@@ -243,12 +241,15 @@ if not df_attendance.empty:
         )
         selected_years_slider = list(range(min_year, max_year + 1))
     elif len(all_years_in_data) == 1:
-        st.sidebar.info(f"Only data for year {all_years_in_data[0]} is available.") # Changed to st.sidebar.info
+        st.info(f"Only data for year {all_years_in_data[0]} is available.") # Back to st.info
         selected_years_slider = all_years_in_data
     else:
-        st.sidebar.warning("No year data available for filtering.") # Changed to st.sidebar.warning
+        st.warning("No year data available for filtering.") # Back to st.warning
         selected_years_slider = []
 
+
+    # --- Sidebar Filters ---
+    st.sidebar.header("Additional Filter Options")
 
     # Offseason filter option - True means "smooth line (include offseason)", False means "exclude (gap)"
     filter_offseason_smooth = st.sidebar.checkbox(
